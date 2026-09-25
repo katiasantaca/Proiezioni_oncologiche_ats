@@ -1,0 +1,495 @@
+
+---
+geometry: left=0.5cm,right=0.5cm,top=1cm,bottom=1cm
+
+params:
+  report_title: "Analisi stratificate per distretto"
+
+header-includes:
+- \usepackage{pdflscape}
+- \newcommand{\blandscape}{\begin{landscape}}
+- \newcommand{\elandscape}{\end{landscape}}
+- \newcommand{\reporttitle}{`r params$report_title`}
+- \newcommand{\datareport}{`r paste0(format(Sys.Date(), "%d"), " ", c("Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre")[as.integer(format(Sys.Date(), "%m"))], " ", format(Sys.Date(), "%Y"))`}
+
+title: ""
+
+output:
+  pdf_document:
+    includes:
+      before_body: title.tex
+      latex_engine: xelatex
+  sansfont: Arial
+---
+
+\large
+\renewcommand{\contentsname}{} 
+\tableofcontents
+
+```{r loading_df, include=FALSE}
+options(scipen=999)
+
+library(dplyr)
+library(tidyr)
+#library(epitools)
+library(forecast)
+library(ggplot2)
+library(ggpattern)
+# library(ggh4x)
+# library(ISOweek)
+library(knitr)
+library(gridExtra)
+library(grid)
+library(gtable)
+
+
+opts_chunk$set(echo=FALSE, warning=FALSE)
+
+#carico i dataframe nell'ambiente R
+load("dati/computed_IRs.RData")
+
+#definisco il dataframe di riferimento (df)
+df <- table_IR_district
+
+#definisco il nome del gruppo di riferimento (variabile gruppo in df)
+group_name<-"distretto"
+anno_soglia <- 2021.5
+
+```
+
+```{r modelfit_with_2020, include=FALSE}
+
+categories <- df %>%
+  pull(all_of(group_name)) %>%
+  unique() 
+
+id_cat<-0
+dfplot_list<-list()
+PYmedian_list<-list()
+
+for(category in categories) {
+  
+  id_cat<-id_cat+1
+  
+  temp_df<- df %>%
+    filter(.data[[group_name[[1]]]]==category)
+  
+  #stima PY mediano durante tutto il periodo in studio
+  PYmedian_list[[id_cat]] <- median(temp_df$PY)
+  
+  #stima del modello ARIMA considerando tutti i dati, incluso il 2020 (COVID)
+  ts_data<-ts(data=temp_df$IR_10000,
+              start = 2009,
+              frequency = 1)
+  
+  fit <- auto.arima(ts_data)
+  fittedValues<- fitted(fit)
+  forecastedValues <- forecast(fit,5)
+  
+  preddata<-data.frame(anno = as.character(2022:2026),
+                       IR_10000 = round(as.numeric(forecastedValues$mean),2),
+                       confband_lower = round(as.numeric(forecastedValues$lower[,2]),2),
+                       confband_upper = round(as.numeric(forecastedValues$upper[,2]),2)) %>%
+    mutate(confband_lower = case_when(confband_lower<0 ~ 0,
+                                      TRUE ~ confband_lower))
+  
+   df_to_plot <- temp_df %>%
+    bind_rows(preddata) %>%
+    mutate(anno_num = as.numeric(anno))
+   
+   
+   y_soglia <- approx(df_to_plot$anno_num, df_to_plot$IR_10000, xout = anno_soglia)$y
+   
+   df_to_plot <- bind_rows(df_to_plot,
+                           data.frame(anno_num = anno_soglia, IR_10000 = y_soglia)) %>%
+     mutate(confband_lower = case_when(anno_num==2021 ~ IR_10000, TRUE ~ confband_lower),
+            confband_upper = case_when(anno_num==2021 ~ IR_10000, TRUE ~ confband_upper)) %>%
+     arrange(anno_num)
+   
+   dfplot_list[[id_cat]]<-df_to_plot
+   
+   rm(df_to_plot, y_soglia, preddata, forecastedValues, fittedValues, fit, ts_data, temp_df)
+}
+
+
+```
+
+```{r modelfit_without_2020, include=FALSE}
+
+id_cat<-0
+dfplot_list_no2020<-list()
+PYmedian_list_no2020<-list()
+
+for(category in categories) {
+  
+  id_cat<-id_cat+1
+  
+  #esclusione del 2020 e ricalcolo delta_IR_perc
+  temp_df<- df %>%
+    filter(.data[[group_name[[1]]]]==category & anno!="2020") %>%
+      mutate(delta_IR_perc = if_else(is.na(lag(IR_10000)),
+                              NA_character_,
+                              sprintf("%.2f%%", (IR_10000 / lag(IR_10000) - 1) * 100)))
+  
+  #add and empty row
+  temp_df[nrow(temp_df) + 1, ] <- NA
+  
+  temp_df <- temp_df %>%
+  mutate(anno = case_when(is.na(anno)==TRUE ~ "2020",
+                          TRUE ~ anno)) %>%
+  arrange(anno)
+  
+  #stima PY mediano durante tutto il periodo in studio
+  PYmedian_list_no2020[[id_cat]] <- median(na.omit(temp_df$PY))
+  
+  #stima del modello ARIMA considerando tutti i dati, escludendo il 2020
+  ts_data<-ts(data=temp_df$IR_10000,
+              start = 2009,
+              frequency = 1)
+
+  fit <- auto.arima(ts_data)
+  fittedValues<- fitted(fit)
+  forecastedValues <- forecast(fit,5)
+  
+  preddata<-data.frame(anno = as.character(2022:2026),
+                       IR_10000 = round(as.numeric(forecastedValues$mean),2),
+                       confband_lower = round(as.numeric(forecastedValues$lower[,2]),2),
+                       confband_upper = round(as.numeric(forecastedValues$upper[,2]),2)) %>%
+    mutate(confband_lower = case_when(confband_lower<0 ~ 0,
+                                      TRUE ~ confband_lower))
+  
+   df_to_plot <- temp_df %>%
+    bind_rows(preddata) %>%
+    mutate(anno_num = as.numeric(anno))
+   
+   
+   y_soglia <- approx(df_to_plot$anno_num, df_to_plot$IR_10000, xout = anno_soglia)$y
+   
+   df_to_plot <- bind_rows(df_to_plot,
+                           data.frame(anno_num = anno_soglia, IR_10000 = y_soglia)) %>%
+     mutate(confband_lower = case_when(anno_num==2021 ~ IR_10000, TRUE ~ confband_lower),
+            confband_upper = case_when(anno_num==2021 ~ IR_10000, TRUE ~ confband_upper)) %>%
+     arrange(anno_num)
+   
+   dfplot_list_no2020[[id_cat]]<-df_to_plot
+   
+   rm(df_to_plot, y_soglia, preddata, forecastedValues, fittedValues, fit, ts_data, temp_df)
+}
+
+
+```
+\newpage
+
+\blandscape
+# Serie storica dei tassi (per 10,000 anni-persona) stratificati per classi di età, includendo il 2020
+
+```{r figs_with_2020, fig.width=9.45, fig.height=6.75, dpi = 300, results='asis'}
+
+id_cat<-0
+
+for(category in categories) {
+  
+  id_cat<-id_cat+1
+  
+  p<-ggplot(data=dfplot_list[[id_cat]], aes(x=anno_num,y=IR_10000, group=1)) +
+  
+  #observed time series
+  geom_line(data = subset(dfplot_list[[id_cat]], anno_num <= 2021),
+            color = "#333333",
+            linewidth = 1.2) +
+  
+  geom_point(data = subset(dfplot_list[[id_cat]], anno_num <= 2021),
+             color = "#333333",
+             size = 2.5) +
+  
+  
+  geom_errorbar(data = subset(dfplot_list[[id_cat]], anno_num <= 2021),
+                aes(ymin=lower_IR_10000, ymax=upper_IR_10000), 
+                color = "#333333", 
+                width=0.2) +
+  
+  #predicted time series (fitted values)
+  geom_line(data = subset(dfplot_list[[id_cat]], anno_num >= 2021),
+            color = "#D55E00",
+            linetype = 2,
+            linewidth = 1.2) +
+  
+  geom_point(data = subset(dfplot_list[[id_cat]], anno_num >= 2022),
+             color = "#D55E00",
+             shape = 15,
+             size = 2.5,
+             alpha = 0.6) +
+  
+  
+  scale_x_continuous(breaks=2009:2026) +
+  #scale_y_continuous(breaks=seq(ylimits[1],ylimits[2],2.5)) +
+  
+  geom_ribbon(data = dfplot_list[[id_cat]] %>% 
+                filter(anno_num!=2021.5 & anno_num >= 2021),
+              aes(x=anno_num, y=IR_10000, ymin=confband_lower, ymax=confband_upper),
+              fill="#F4A3A3",
+              alpha=0.2) +
+  
+  labs(x="Anno",
+       y="Tasso di incidenza") +
+  
+  theme_bw(base_size = 11) +
+
+  theme(#plot.margin = margin(top=1,right=5,bottom=10,left=5),
+        axis.text = element_text(size=11), #,angle=-90
+        axis.title = element_text(size = 13)) #+
+  #coord_cartesian(ylim=ylimits)
+  
+  
+  observed_IR<-dfplot_list[[id_cat]] %>%
+  filter(is.na(n_eventi)==FALSE) %>%
+  mutate(`Numero\neventi`= format(n_eventi, big.mark = ",", scientific = FALSE), 
+         AP = format(round(PY,0), big.mark = ",", scientific = FALSE),
+         `TI stimato\n(IC 95%)` = paste0(sprintf("%.2f",IR_10000)," (",sprintf("%.2f",lower_IR_10000)," - ",sprintf("%.2f",upper_IR_10000),")")) %>%
+  rename(APC = delta_IR_perc,
+         Anno = anno) %>%
+  select(Anno,`Numero\neventi`,AP,`TI stimato\n(IC 95%)`, APC)
+
+
+predicted_IR<-dfplot_list[[id_cat]] %>%
+  filter(anno_num>=2022) %>%
+  mutate(`TI predetto\n (previsione al 95%)` = paste0(IR_10000," (",sprintf("%.2f",confband_lower)," - ",sprintf("%.2f",confband_upper),")"),
+         `Numero eventi predetti°\n (previsione al 95%)` = paste0(format(round(confband_lower/10000*PYmedian_list[[id_cat]],0), big.mark = ",", scientific = FALSE)," - ",format(round(confband_upper/10000*PYmedian_list[[id_cat]],0), big.mark = ",", scientific = FALSE))) %>% 
+  rename(Anno = anno) %>%
+  select(Anno,`TI predetto\n (previsione al 95%)`,`Numero eventi predetti°\n (previsione al 95%)`)
+
+
+my_theme <- ttheme_default(base_size = 11,
+                           padding = unit(c(1, 1.5), "mm"),
+                           
+                           core = list(bg_params = list(fill = rep(c("white","#E6F2FF"),length.out = nrow(observed_IR)))),
+                           
+                           colhead = list(bg_params = list(fill = "#D6EAF8"),
+                                          fg_params = list(fontface = "bold",fontsize = 12),
+                                          padding = unit(c(0, 1.5), "mm")))
+
+
+# tabelle con dimensione carattere maggiore
+observed_IR <- tableGrob(observed_IR,
+                         rows = NULL,
+                         theme = my_theme)
+
+predicted_IR <- tableGrob(predicted_IR,
+                          rows = NULL,
+                          theme = my_theme)
+
+
+observed_IR$widths  <- observed_IR$widths * 1.15
+predicted_IR$widths <- predicted_IR$widths * 1.15
+
+
+# affianco le tabelle
+arranged_tables <- arrangeGrob(observed_IR,predicted_IR,
+                               ncol = 2,
+                               top = NULL)
+
+# spostamento orizzontale delle tabelle
+arranged_tables_shifted <- grobTree(arranged_tables,
+                                    vp = viewport(x = 0.5, just = "center"))
+
+spacer <- nullGrob()
+
+final_plot <- arrangeGrob(p,
+                          spacer,
+                          arranged_tables_shifted,
+                          ncol = 1,
+                          heights = unit.c(
+                              unit(7,"cm"), 
+                              unit(10,"mm"),
+                              unit(6.5,"cm"))) 
+
+cat("\n\n## Distretto ",category,"\n\n",sep = "")
+
+grid.newpage()
+grid.draw(final_plot)
+
+rm(final_plot, arranged_tables_shifted, arranged_tables, predicted_IR, observed_IR, my_theme, p)
+
+PYmedian <- format(round(PYmedian_list[[id_cat]], 0), big.mark = ",", scientific = FALSE, trim = TRUE)
+
+cat(
+    "\\footnotesize\n\n",
+    "°Il numero di eventi è stato calcolato moltiplicando il TI predetto (estremi dell'intervallo al 95\\%) per ",PYmedian," AP, corrispondenti al valore storico mediano\n\n",
+    "Bande di errore attorno alle stime denotano il 95\\% dell'intervallo di confidenza\n\n",
+    "Fonti dati: Registro Tumori (2009--2021); registro degli assistiti/denominatori ISTAT (2007--2026)\n\n",
+    "\\newpage\n\n",
+    "\\normalsize\n\n"
+  )
+
+}
+
+```
+
+\newpage
+
+# Serie storica dei tassi (per 10,000 anni-persona) stratificati per classi di età, escludendo il 2020
+
+```{r figs_without_2020, fig.width=9.45, fig.height=6.75, dpi = 300, results='asis'}
+
+id_cat<-0
+
+for(category in categories) {
+    #category<-"Esofago"
+  id_cat<-id_cat+1
+  
+  p_no2020<-ggplot(data=dfplot_list_no2020[[id_cat]], aes(x=anno_num,y=IR_10000, group=1)) +
+    
+  # patterned background (shaded area between 2019 to 2021)
+  geom_rect_pattern(aes(xmin = 2019,xmax = 2021,ymin = -Inf,ymax = Inf),
+                    pattern = "stripe",
+                    pattern_angle = 135,
+                    pattern_density = 0.15,
+                    pattern_spacing = 0.03,
+                    pattern_colour = "darkblue",
+                    pattern_fill = "darkblue",
+                    pattern_alpha = 0.05,
+                    fill = "lightgrey",
+                    colour = NA) +
+  
+  #observed time series
+  geom_line(data = subset(dfplot_list_no2020[[id_cat]], anno_num <= 2021),
+            color = "#333333",
+            linewidth = 1.2) +
+  
+  geom_point(data = subset(dfplot_list_no2020[[id_cat]], anno_num <= 2021),
+             color = "#333333",
+             size = 2.5) +
+  
+  
+  geom_errorbar(data = subset(dfplot_list_no2020[[id_cat]], anno_num <= 2021),
+                aes(ymin=lower_IR_10000, ymax=upper_IR_10000), 
+                color = "#333333", 
+                width=0.2) +
+  
+  #predicted time series (fitted values)
+  geom_line(data = subset(dfplot_list_no2020[[id_cat]], anno_num >= 2021),
+            color = "#D55E00",
+            linetype = 2,
+            linewidth = 1.2) +
+  
+  geom_point(data = subset(dfplot_list_no2020[[id_cat]], anno_num >= 2022),
+             color = "#D55E00",
+             shape = 15,
+             size = 2.5,
+             alpha = 0.6) +
+  
+  
+  scale_x_continuous(breaks=2009:2026) +
+  #scale_y_continuous(breaks=seq(ylimits[1],ylimits[2],2.5)) +
+  
+  geom_ribbon(data = dfplot_list_no2020[[id_cat]] %>% 
+                filter(anno_num!=2021.5 & anno_num >= 2021),
+              aes(x=anno_num, y=IR_10000, ymin=confband_lower, ymax=confband_upper),
+              fill="#F4A3A3",
+              alpha=0.2) +
+  
+  labs(x="Anno",
+       y="Tasso di incidenza") +
+  
+  theme_bw(base_size = 11) +
+
+  theme(#plot.margin = margin(top=1,right=5,bottom=10,left=5),
+        axis.text = element_text(size=11), #,angle=-90
+        axis.title = element_text(size = 13)) #+ 
+  #coord_cartesian(ylim=ylimits)
+
+
+observed_IR_no2020<-dfplot_list_no2020[[id_cat]] %>%
+  filter(is.na(n_eventi)==FALSE) %>%
+  mutate(`Numero\neventi`= format(n_eventi, big.mark = ",", scientific = FALSE), 
+         AP = format(round(PY,0), big.mark = ",", scientific = FALSE),
+         `TI stimato\n(IC 95%)` = paste0(sprintf("%.2f",IR_10000)," (",sprintf("%.2f",lower_IR_10000)," - ",sprintf("%.2f",upper_IR_10000),")")) %>%
+  rename(APC = delta_IR_perc,
+         Anno = anno) %>%
+  select(Anno,`Numero\neventi`,AP,`TI stimato\n(IC 95%)`, APC)
+
+
+#add and empty row
+observed_IR_no2020[nrow(observed_IR_no2020) + 1, ] <- NA
+
+observed_IR_no2020 <- observed_IR_no2020 %>%
+  mutate(Anno = case_when(is.na(Anno)==TRUE ~ "2020",TRUE ~ Anno),
+         APC = case_when(Anno=="2021" ~ paste0(APC,"*"), TRUE ~ APC)) %>%
+  arrange(Anno)
+
+
+predicted_IR_no2020<-dfplot_list_no2020[[id_cat]] %>%
+  filter(anno_num>=2022) %>%
+  mutate(`TI predetto\n (previsione al 95%)` = paste0(IR_10000," (",sprintf("%.2f",confband_lower)," - ",sprintf("%.2f",confband_upper),")"),
+         `Numero eventi predetti°\n (previsione al 95%)` = paste0(format(round(confband_lower/10000*PYmedian_list[[id_cat]],0), big.mark = ",", scientific = FALSE)," - ",format(round(confband_upper/10000*PYmedian_list[[id_cat]],0), big.mark = ",", scientific = FALSE))) %>% 
+  rename(Anno = anno) %>%
+  select(Anno,`TI predetto\n (previsione al 95%)`,`Numero eventi predetti°\n (previsione al 95%)`)
+
+
+my_theme <- ttheme_default(base_size = 11,
+                           padding = unit(c(1, 1.5), "mm"),
+                           
+                           core = list(bg_params = list(fill = rep(c("white","#E6F2E6"),length.out = nrow(observed_IR_no2020)+1))),
+                           
+                           colhead = list(bg_params = list(fill = "#D6EAD6"),
+                                          fg_params = list(fontface = "bold",fontsize = 12),
+                                          padding = unit(c(0, 1.5), "mm")))
+
+
+# tabelle con dimensione carattere maggiore
+observed_IR_no2020 <- tableGrob(observed_IR_no2020,
+                         rows = NULL,
+                         theme = my_theme)
+
+predicted_IR_no2020 <- tableGrob(predicted_IR_no2020,
+                          rows = NULL,
+                          theme = my_theme)
+
+
+observed_IR_no2020$widths  <- observed_IR_no2020$widths * 1.15
+predicted_IR_no2020$widths <- predicted_IR_no2020$widths * 1.15
+
+
+# affianco le tabelle
+arranged_tables_no2020 <- arrangeGrob(observed_IR_no2020,predicted_IR_no2020,
+                               ncol = 2,
+                               top = NULL)
+
+# spostamento orizzontale delle tabelle
+arranged_tables_shifted_no2020 <- grobTree(arranged_tables_no2020,
+                                    vp = viewport(x = 0.5, just = "center"))
+
+spacer <- nullGrob()
+
+final_plot_no2020 <- arrangeGrob(p_no2020,
+                          spacer,
+                          arranged_tables_shifted_no2020,
+                          ncol = 1,
+                          heights = unit.c(
+                              unit(7,"cm"), 
+                              unit(10,"mm"),    
+                              unit(6.5,"cm")))
+
+cat("\n\n## Distretto ",category,"\n\n",sep = "")
+
+grid.newpage()
+grid.draw(final_plot_no2020)
+
+rm(final_plot_no2020, arranged_tables_shifted_no2020, arranged_tables_no2020, predicted_IR_no2020, observed_IR_no2020, my_theme, p_no2020)
+
+PYmedian <- format(round(PYmedian_list_no2020[[id_cat]], 0), big.mark = ",", scientific = FALSE, trim = TRUE)
+
+cat(
+    "\\footnotesize\n\n",
+    "*APC calcolata rispetto al 2019; °Il numero di eventi è stato calcolato moltiplicando il TI predetto (estremi dell'intervallo al 95\\%) per ",PYmedian," AP, corrispondenti al valore storico mediano\n\n",
+    "Bande di errore attorno alle stime denotano il 95\\% dell'intervallo di confidenza\n\n",
+    "Fonti dati: Registro Tumori (2009--2021); registro degli assistiti/denominatori ISTAT (2007--2026)\n\n",
+    "\\newpage\n\n",
+    "\\normalsize\n\n"
+  )
+
+}
+
+```
+
+\elandscape
