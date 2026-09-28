@@ -6,7 +6,7 @@ rm(table_prediction_registro_assistiti_presenti)
 ###############################################################
 
 #####
-summary_incidence <- function(data, group = NULL){
+summary_incidence <- function(data, group = NULL){ 
   
   if(is.null(group)){
     

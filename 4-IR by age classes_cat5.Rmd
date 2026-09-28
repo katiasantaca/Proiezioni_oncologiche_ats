@@ -8,7 +8,7 @@ params:
 header-includes:
 - \usepackage{pdflscape}
 - \newcommand{\blandscape}{\begin{landscape}}
-- \newcommand{\elandscape}{\end{landscape}}
+- \newcommand{\elandscape}{\end{landscape}} 
 - \newcommand{\reporttitle}{`r params$report_title`}
 - \newcommand{\datareport}{`r paste0(format(Sys.Date(), "%d"), " ", c("Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre")[as.integer(format(Sys.Date(), "%m"))], " ", format(Sys.Date(), "%Y"))`}
 

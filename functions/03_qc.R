@@ -13,7 +13,7 @@
 #
 # Il Registro Tumori viene assunto come fonte validata.
 # Non vengono pertanto effettuati ulteriori controlli
-# su sesso e stato in vita/decesso.
+# su sesso e stato in vita/decesso. 
 # ============================================================
 
 

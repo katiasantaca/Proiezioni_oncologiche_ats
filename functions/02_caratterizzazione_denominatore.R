@@ -5,7 +5,7 @@
 # A partire dal dataset aggregato "denominatore_finale_aggregato"
 # vengono prodotti i dataset utilizzati per descrivere la
 # popolazione assistita secondo:
-#
+# 
 #   - anno
 #   - sesso
 #   - classe di età

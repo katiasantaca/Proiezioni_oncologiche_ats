@@ -5,7 +5,7 @@ table_prediction_registro_assistiti_presenti <- registro_tumori %>%
     dinciden = as.Date(dinciden),
     anno_incidenza = year(dinciden),
     eta = ETA, sesso= SESSO, asst = ASST, distretto = DISTRETTO
-  )
+  ) 
 
 for (aa in anni) {
   table_prediction_registro_assistiti_presenti[[paste0("evento_", aa)]] <-

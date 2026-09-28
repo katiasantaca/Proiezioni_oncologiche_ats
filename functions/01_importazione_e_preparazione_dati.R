@@ -8,7 +8,7 @@
 #   2. associa a ciascun comune ASST, Distretto e Ambito;
 #   3. armonizza la denominazione del distretto Oglio Po;
 #   4. aggrega la popolazione per anno, sesso, fascia di età
-#      e articolazione territoriale;
+#      e articolazione territoriale; 
 #   5-6-7. costruisce le classi di età utilizzate nelle analisi.
 #    ---registro
 #   8. aggiunta della sede tumorale come riportato nel paper di riferimento dell'obbiettivo 4.

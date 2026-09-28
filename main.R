@@ -15,7 +15,7 @@
 # Questo script esegue l'intera pipeline di analisi del Registro Tumori:
 #
 #   1. configurazione dell'ambiente di analisi;
-#   2. importazione e preparazione dei dati;
+#   2. importazione e preparazione dei dati; 
 #   3. preparazione dei denominatori;
 #   4. controlli di qualità del Registro Tumori;
 #   5. trasformazione del Registro Tumori nel formato richiesto dalle analisi;
