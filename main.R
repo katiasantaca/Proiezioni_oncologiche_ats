@@ -12,7 +12,7 @@
 # DESCRIPTION
 # ==============================================================================
 #
-# Questo script esegue l'intera pipeline di analisi del Registro Tumori:
+# Questo script esegue l'intera pipeline di analisi del Registro Tumori in questo ordine:
 #
 #   1. configurazione dell'ambiente di analisi;
 #   2. importazione e preparazione dei dati; 
@@ -32,15 +32,16 @@
 #
 # 2. Verificare che nella cartella "dati" sia presente il file:
 #
-#       registro_tumori_project.RData
+#       rt_2009_2021_crypt.sas7bdat
 #
-# 3. Verificare che la cartella "functions" contenga tutti gli script
-#    distribuiti insieme al progetto.
+# 3. Impostare la WORKING DIRECTORY del progetto.
 #
-# 4. Impostare come working directory la CARTELLA PRINCIPALE del progetto.
-#
-#    In RStudio è possibile farlo aprendo il file .Rproj del progetto,
-#    se disponibile.
+# Impostare qui il percorso della cartella principale del progetto.
+# Esempio:
+# setwd("/percorso/della/cartella/proiezioni-oncologiche-ats")
+
+setwd("INSERIRE_QUI_IL_PERCORSO_DELLA_CARTELLA_DEL_PROGETTO")
+
 #
 # 5. Eseguire questo script utilizzando:
 #
@@ -50,9 +51,7 @@
 #
 #       source("main.R")
 #
-# Non è necessario eseguire manualmente i singoli script contenuti
-# nella cartella "functions".
-#
+# Oppure selezionando tutta questa pagina e selezionare il tasto Run
 # ==============================================================================
 # STRUTTURA ATTESA DEL PROGETTO
 # ==============================================================================
