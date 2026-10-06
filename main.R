@@ -38,11 +38,9 @@
 #
 # Impostare qui il percorso della cartella principale del progetto.
 # Esempio:
+#
+#
 # setwd("/percorso/della/cartella/proiezioni-oncologiche-ats")
-
-setwd("/Users/katia_santaca/Desktop/--LAVORO--/progetti_github/proiezioni-oncologiche-ats")
-
-
 #
 # 5. Eseguire questo script utilizzando:
 #
