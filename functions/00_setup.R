@@ -16,7 +16,8 @@ packages <- c(
   "gridExtra",
   "gtable",
   "rmarkdown",
-  "stringr"
+  "stringr",
+  "tibble"
 )
 
 # 2. Installa solo i pacchetti mancanti ----
