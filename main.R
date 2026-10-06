@@ -40,7 +40,8 @@
 # Esempio:
 # setwd("/percorso/della/cartella/proiezioni-oncologiche-ats")
 
-setwd("INSERIRE_QUI_IL_PERCORSO_DELLA_CARTELLA_DEL_PROGETTO")
+setwd("/Users/katia_santaca/Desktop/--LAVORO--/progetti_github/proiezioni-oncologiche-ats")
+
 
 #
 # 5. Eseguire questo script utilizzando:
